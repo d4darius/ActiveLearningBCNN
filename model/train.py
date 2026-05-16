@@ -51,11 +51,13 @@ def eval_step(state, batch):
 def train_epoch(state, train_ds, batch_size, rng):
     """Train for a single epoch. Assumes train_ds is a dict with 'image' and 'label'."""
     train_ds_size = len(train_ds['image'])
-    steps_per_epoch = train_ds_size // batch_size
+    # Clamp batch size to dataset size — critical for small initial sets
+    effective_batch_size = min(batch_size, train_ds_size)
+    steps_per_epoch = train_ds_size // effective_batch_size
     
     perms = jax.random.permutation(rng, train_ds_size)
-    perms = perms[:steps_per_epoch * batch_size]  # skip incomplete batch
-    perms = perms.reshape((steps_per_epoch, batch_size))
+    perms = perms[:steps_per_epoch * effective_batch_size]  # skip incomplete batch
+    perms = perms.reshape((steps_per_epoch, effective_batch_size))
     
     batch_metrics = []
     for perm in perms:

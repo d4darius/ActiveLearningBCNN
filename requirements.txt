@@ -1,0 +1,29 @@
+# Deep Bayesian Active Learning — MNIST reproduction
+# Python 3.10+ recommended
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# For GPU support, replace the jax line with the appropriate
+# CUDA wheel. See: https://jax.readthedocs.io/en/latest/installation.html
+# e.g. pip install -U "jax[cuda12]"
+ 
+# --- Core ML framework ---
+jax
+jaxlib       
+flax
+optax
+ 
+# --- Probabilistic programming (used in loss.py) ---
+numpyro
+ 
+# --- Data ---
+torch
+torchvision
+ 
+# --- Numerics ---
+numpy
+ 
+# --- Plotting ---
+matplotlib
+ 
