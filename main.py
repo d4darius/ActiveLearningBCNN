@@ -14,7 +14,7 @@ from model.learning_loop import (
     ACQUISITION_FUNCTIONS,
     active_learning_loop,
     get_balanced_initial_set,
-    run_all_acquisitions,
+    run_acquisitions,
 )
 
 
@@ -100,14 +100,19 @@ def parse_args():
     parser.add_argument(
         '--acquisition', '-a',
         type=str,
-        default='bald',
+        nargs='+',
+        default=['bald'],
         choices=ACQUISITION_FUNCTIONS + ['all'],
         help=(
-            'Acquisition function to use. '
-            '"all" runs every function and plots them together '
-            '(reproduces Figure 1 of the paper). '
+            'One or more acquisition functions to run. '
+            'Use "all" to run every function (reproduces Figure 1 of the paper). '
+            'Results are plotted together for easy comparison. '
             f'Choices: {ACQUISITION_FUNCTIONS + ["all"]}. '
-            'Default: bald'
+            'Default: bald. '
+            'Examples: '
+            '--acquisition bald random | '
+            '--acquisition bald max_entropy variation_ratios | '
+            '--acquisition all'
         )
     )
 
@@ -246,32 +251,27 @@ def main():
     )
 
     # --- Run ---
-    if args.acquisition == 'all':
-        # Reproduces Figure 1 of the paper
-        results = run_all_acquisitions(
-            dataset     = mnist_train,
-            test_set    = mnist_test,
-            model       = model,
-            rng         = rng,
-            n_per_class = args.n_per_class,
-            **loop_kwargs,
-        )
-    else:
-        # Single acquisition function
-        np_rng = np.random.default_rng(args.seed)
-        train_set, pool = get_balanced_initial_set(
-            mnist_train, n_per_class=args.n_per_class, rng=np_rng
-        )
-        history = active_learning_loop(
-            pool             = pool,
-            train_set        = train_set,
-            test_set         = mnist_test,
-            model            = model,
-            rng              = rng,
-            acquisition_name = args.acquisition,
-            **loop_kwargs,
-        )
-        results = {args.acquisition: history}
+    # if args.acquisition == ['all']:
+    #     # Reproduces Figure 1 of the paper
+    #     results = run_acquisitions(
+    #         dataset     = mnist_train,
+    #         test_set    = mnist_test,
+    #         model       = model,
+    #         rng         = rng,
+    #         n_per_class = args.n_per_class,
+    #         **loop_kwargs,
+    #     )
+    # else:
+    # Single acquisition function
+    results = run_acquisitions(
+        dataset      = mnist_train,
+        test_set     = mnist_test,
+        model        = model,
+        rng          = rng,
+        n_per_class  = args.n_per_class,
+        acquisitions = args.acquisition,
+        **loop_kwargs,
+    )
 
     # --- Save history as JSON ---
     json_path = os.path.join(args.output_dir, f"{args.acquisition}_history.json")

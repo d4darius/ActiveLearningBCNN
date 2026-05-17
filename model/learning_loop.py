@@ -325,13 +325,13 @@ def active_learning_loop(
 # Convenience: run all acquisition functions and collect results
 # ---------------------------------------------------------------------------
 
-def run_all_acquisitions(
+def run_acquisitions(
     dataset,
     test_set,
     model,
     rng,
+    acquisitions,
     n_per_class    = 2,
-    acquisitions   = None,
     **loop_kwargs
 ):
     """
@@ -349,8 +349,9 @@ def run_all_acquisitions(
     Returns:
         results : dict mapping acquisition_name → history list
     """
-    if acquisitions is None:
+    if 'all' in acquisitions:
         acquisitions = ACQUISITION_FUNCTIONS
+    
 
     results = {}
     for acq in acquisitions:
