@@ -273,15 +273,16 @@ def main():
         **loop_kwargs,
     )
 
+    file_name = "_".join(map(str, args.acquisition))
     # --- Save history as JSON ---
-    json_path = os.path.join(args.output_dir, f"{args.acquisition}_history.json")
+    json_path = os.path.join(args.output_dir, f"{file_name}_history.json")
     with open(json_path, 'w') as f:
         json.dump(results, f, indent=2)
     print(f"\nHistory saved to {json_path}")
 
     # --- Plot ---
     if not args.no_plot:
-        plot_path = os.path.join(args.output_dir, f"{args.acquisition}_accuracy.png")
+        plot_path = os.path.join(args.output_dir, f"{file_name}_accuracy.png")
         plot_history(results, save_path=plot_path)
 
 
