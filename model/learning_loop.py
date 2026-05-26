@@ -321,6 +321,36 @@ def active_learning_loop(
     return history
 
 
+def average_histories(histories):
+    """
+    Averages metrics across multiple repetitions.
+    
+    Args:
+        histories: list of 3 history lists, each being a list of dicts
+                   e.g. [history_rep1, history_rep2, history_rep3]
+    
+    Returns:
+        averaged: list of dicts with mean and std for each metric at each step
+    """
+    n_steps = len(histories[0])
+    averaged = []
+
+    for step in range(n_steps):
+        # Collect all values for this step across repetitions
+        step_dicts = [rep[step] for rep in histories]
+
+        averaged.append({
+            'step'             : step_dicts[0]['step'],
+            'n_labelled'       : step_dicts[0]['n_labelled'],
+            'test_accuracy'    : np.mean([d['test_accuracy'] for d in step_dicts]),
+            'test_accuracy_std': np.std( [d['test_accuracy'] for d in step_dicts]),
+            'test_loss'        : np.mean([d['test_loss']     for d in step_dicts]),
+            'test_loss_std'    : np.std( [d['test_loss']     for d in step_dicts]),
+        })
+
+    return averaged
+
+
 # ---------------------------------------------------------------------------
 # Convenience: run all acquisition functions and collect results
 # ---------------------------------------------------------------------------
@@ -353,24 +383,31 @@ def run_acquisitions(
         acquisitions = ACQUISITION_FUNCTIONS
     
 
-    results = {}
-    for acq in acquisitions:
-        print(f"\n{'='*50}")
-        print(f"Running acquisition: {acq}")
-        print(f"{'='*50}")
+    all_histories = {acq: [] for acq in acquisitions}
+    N_ITERATIONS = 3
 
-        # Fresh pool and train set for every acquisition function
-        np_rng = np.random.default_rng(42)
-        train_set, pool = get_balanced_initial_set(
-            dataset, n_per_class=n_per_class, rng=np_rng
-        )
+    for rep in range(N_ITERATIONS):
+        for acq in acquisitions:
+            print(f"\n{'='*50}")
+            print(f"Running acquisition: {acq} at repetition {rep}")
+            print(f"{'='*50}")
 
-        rng, loop_rng = jax.random.split(rng)
-        history = active_learning_loop(
-            pool, train_set, test_set, model,
-            loop_rng, acquisition_name=acq,
-            **loop_kwargs
-        )
-        results[acq] = history
+            # Fresh pool and train set for every acquisition function
+            np_rng = np.random.default_rng(42)
+            train_set, pool = get_balanced_initial_set(
+                dataset, n_per_class=n_per_class, rng=np_rng
+            )
+
+            rng, loop_rng = jax.random.split(rng)
+            history = active_learning_loop(
+                pool, train_set, test_set, model,
+                loop_rng, acquisition_name=acq,
+                **loop_kwargs
+            )
+            all_histories[acq].append(history)
+
+    results = {acq: average_histories(all_histories[acq] for acq in acquisitions)}
+
+    
 
     return results
