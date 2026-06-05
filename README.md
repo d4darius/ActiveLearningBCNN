@@ -14,6 +14,33 @@ As outlined in the original scope, this repository is built to:
 
 ---
 
+## 🚀 Features & Acquisition Functions
+
+The codebase supports several acquisition strategies to query the most informative unlabelled samples. These are implemented in model/learning_loop.py:
+
+- BALD (Bayesian Active Learning by Disagreement): Maximizes mutual information (epistemic uncertainty).
+- Max Entropy: Maximizes predictive entropy (total uncertainty).
+- Variation Ratios: Maximizes dispersion (1 - max predicted probability).
+- Mean STD: Maximizes the average standard deviation across classes over MC samples.
+- Random: A uniform random baseline for comparison.
+
+By default, the active learning loop evaluates acquisitions over 3 independent repetitions to provide statistically averaged test accuracy and loss.
+
+---
+
+## 🛠️ Implementation Details
+
+The codebase relies on Monte Carlo (MC) Dropout to approximate Bayesian inference. 
+
+### Core Components
+
+- **Bayesian CNN** (libs/network.py): A Flax-based Convolutional Neural Network with interleaved Dropout layers. Keeping deterministic=False during inference allows us to sample from the approximate posterior.
+- **Training & Optimization** (model/train.py): Uses standard Cross-Entropy Loss with Optax's adamw optimizer. The weight decay directly corresponds to the prior variance in the Bayesian formulation.
+- **Vectorized Uncertainty** (libs/utils.py): Employs jax.vmap to elegantly parallelize stochastic forward passes (MC Dropout) across multiple PRNG keys without hitting Out-Of-Memory (OOM) errors.
+- **Active Learning Loop** (model/learning_loop.py): Implements the oracle loop. At each step, the model is optionally reset, trained to convergence on the labelled set, and the acquisition function is used to score the remaining unlabelled pool.
+
+---
+
 ## 🚀 Setup & Installation
 
 We recommend using a Conda environment to manage dependencies:
@@ -28,43 +55,73 @@ pip install -r requirements.txt
 
 ---
 
+## 💻 Usage
+
+The entry point for the active learning pipeline is main.py. It comes with a robust Command Line Interface (CLI) to configure the active learning parameters, neural network and training loops.
+
+#### Basic Run
+
+To run a standard active learning loop using the BALD acquisition function:
+
+###
+    python main.py --acquisition bald
+
+#### Comparing Multiple Strategies
+
+To compare multiple acquisition functions and plot them together:
+
+### 
+    python main.py --acquisition bald max_entropy random
+
+#### Reproducing the Paper
+To run all available acquisition functions (reproducing Figure 1 of the paper):
+
+###
+    python main.py --acquisition all
+
+
+### Key CLI arguments
+
+| Argument | Default | Description |
+| :-------- | :------- | :----------- |
+|acquisition | bald	| Function(s) to run: bald, max_entropy, variation_ratios, mean_std, random, or all.
+|n_steps	| 100	| Number of active learning acquisition rounds.
+|n_acquisitions |	10 |Number of images acquired from the pool per step.
+|n_per_class	|2|	Initial labelled examples per class (starts with 20 total for MNIST).
+|num_mc_samples|	10 | Number of MC dropout forward passes for uncertainty estimation.
+|n_epochs	| 200	| Training epochs per acquisition step.
+|weight_decay	| 1e-4 | L2 regularisation (prior precision).
+|dropout_prob	|0.5|Dropout probability for the Bayesian CNN.
+|patience | 10| Early stopping patience: stop training if loss does not improve for this many consecutive epochs.
+|min_delta | 1e-4 | Minimum loss improvement to count as progress for early stopping.
+|model_type| bayesian | Whether to run a Bayesian CNN (dropout enabled) or Deterministic CNN (dropout disabled everywhere).
+|no_reset	|False	|Pass to disable resetting model weights between acquisition steps.
+|output_dir	|results/	|Directory to save the output history JSON and plots.
+
+Run *python main.py --help* for the full list of arguments.
+
+
+---
+
 ## 🧪 Experiments
 
 All scripts designed to automatically reproduce the experiments from the paper are located in the `experiments` directory. You can run these bash scripts to launch evaluations across different acquisition functions and model configurations.
 
 ---
 
-## 🛠️ Implementation Details
-
-The codebase relies on Monte Carlo (MC) Dropout to approximate Bayesian inference. 
-
-### Core Components
-
-* **Bayesian CNN (`network.py`)**: Implements a Flax-based Convolutional Neural Network with interleaved Dropout layers. By keeping the `deterministic=False` flag active during inference, we can sample from the approximate posterior.
-* **Loss Formulation (`loss.py`)**: Uses standard Cross-Entropy Loss alongside L2 regularization (weight decay). In the context of MC Dropout, this combination is mathematically equivalent to minimizing the Kullback-Leibler (KL) divergence between the approximate and true posterior. An alternative NumPyro-based negative log-likelihood loss is also included.
-* **Training Loop (`train.py`)**: Utilizes Optax's `adamw` optimizer to properly handle weight decay, which corresponds to the prior variance in the Bayesian formulation.
-* **Uncertainty Estimation (`utils.py`)**: Employs `jax.vmap` to efficiently parallelize stochastic forward passes across multiple PRNG keys. 
-
-### Uncertainty Metrics
-
-The repository calculates two primary uncertainty metrics using the MC Dropout samples:
-
-1.  **Predictive Entropy (Total Uncertainty)**: 
-    Calculated as $H(y|x) = -\sum_{c}p(y=c|x)\log p(y=c|x)$.
-2.  **Mutual Information (Epistemic Uncertainty)**:
-    Calculated as $I(y, w|x) = H(y|x) - \mathbb{E}[H(y|x, w)]$, representing the uncertainty captured by the model weights.
-
----
 
 ## 📂 Repository Structure
 
-| File | Description |
-| :--- | :--- |
-| **`network.py`** | Contains the `BayesianCNN` Flax module with configurable dropout probabilities and classes. |
-| **`loss.py`** | Defines standard and NumPyro-based loss functions, along with accuracy metrics. |
-| **`utils.py`** | Houses the `mc_dropout_forward` function and the math for calculating entropy and mutual information. |
-| **`train.py`** | Implements the JAX-compiled `train_step`, `eval_step`, and the epoch loops. |
-
+### 
+    ├── main.py                   # CLI entry point, data loading, and plotting logic
+    ├── requirements.txt          # Project dependencies
+    ├── libs/
+    │   ├── network.py            # Flax definition of the BayesianCNN module
+    │   ├── loss.py               # Standard and custom loss functions + metrics
+    │   └── utils.py              # jax.vmap MC Dropout logic and uncertainty math
+    └── model/
+        ├── learning_loop.py      # Acquisition functions, pool scoring, and active learning loop
+        └── train.py              # JAX-compiled train_step, eval_step, and epoch training function
 
 ---
 
@@ -93,3 +150,15 @@ We also reproduce the second experiment from the paper, which involves applying 
    ```bash
    python plot_isic.py --input_json results_isic/isic_results.json --output_dir results_isic
    ```
+
+
+## ✍️ Authors
+
+* **Dario Gosmar** - [GitHub Profile](https://github.com/d4darius)
+* **Andrea Gaudino** - [GitHub Profile](https://github.com/andreaGaudino)
+
+## 📄 Acknowledgments
+
+This project is an implementation based on the theoretical foundations presented in the following research:
+
+[**Deep Bayesian Active Learning with Image Data**](https://arxiv.org/abs/1703.02910) Yarin Gal, Riashat Islam, and Zoubin Ghahramani (2017)
