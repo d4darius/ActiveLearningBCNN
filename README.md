@@ -84,16 +84,19 @@ To run all available acquisition functions (reproducing Figure 1 of the paper):
 
 | Argument | Default | Description |
 | :-------- | :------- | :----------- |
-|--acquisition, -a	| bald	| Function(s) to run: bald, max_entropy, variation_ratios, mean_std, random, or all.
-|--n_steps	| 100	| Number of active learning acquisition rounds.
-|--n_acquisitions |	10 |Number of images acquired from the pool per step.
-|--n_per_class	|2|	Initial labelled examples per class (starts with 20 total for MNIST).
-|--num_mc_samples|	10 | Number of MC dropout forward passes for uncertainty estimation.
-|--n_epochs	| 200	| Training epochs per acquisition step.
-|--weight_decay	| 1e-4 | L2 regularisation (prior precision).
-|--dropout_prob	|0.5|Dropout probability for the Bayesian CNN.
-|--no_reset	|False	|Pass to disable resetting model weights between acquisition steps.
-|--output_dir	|results/	|Directory to save the output history JSON and plots.
+|acquisition | bald	| Function(s) to run: bald, max_entropy, variation_ratios, mean_std, random, or all.
+|n_steps	| 100	| Number of active learning acquisition rounds.
+|n_acquisitions |	10 |Number of images acquired from the pool per step.
+|n_per_class	|2|	Initial labelled examples per class (starts with 20 total for MNIST).
+|num_mc_samples|	10 | Number of MC dropout forward passes for uncertainty estimation.
+|n_epochs	| 200	| Training epochs per acquisition step.
+|weight_decay	| 1e-4 | L2 regularisation (prior precision).
+|dropout_prob	|0.5|Dropout probability for the Bayesian CNN.
+|patience | 10| Early stopping patience: stop training if loss does not improve for this many consecutive epochs.
+|min_delta | 1e-4 | Minimum loss improvement to count as progress for early stopping.
+|model_type| bayesian | Whether to run a Bayesian CNN (dropout enabled) or Deterministic CNN (dropout disabled everywhere).
+|no_reset	|False	|Pass to disable resetting model weights between acquisition steps.
+|output_dir	|results/	|Directory to save the output history JSON and plots.
 
 Run *python main.py --help* for the full list of arguments.
 
