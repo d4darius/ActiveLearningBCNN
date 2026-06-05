@@ -150,3 +150,15 @@ We also reproduce the second experiment from the paper, which involves applying 
    ```bash
    python plot_isic.py --input_json results_isic/isic_results.json --output_dir results_isic
    ```
+
+
+## ✍️ Authors
+
+* **Dario Gosmar** - [GitHub Profile](https://github.com/d4darius)
+* **Andrea Gaudino** - [GitHub Profile](https://github.com/andreaGaudino)
+
+## 📄 Acknowledgments
+
+This project is an implementation based on the theoretical foundations presented in the following research:
+
+[**Deep Bayesian Active Learning with Image Data**](https://arxiv.org/abs/1703.02910) Yarin Gal, Riashat Islam, and Zoubin Ghahramani (2017)
