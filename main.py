@@ -146,8 +146,8 @@ def parse_args():
     parser.add_argument(
         '--n_epochs',
         type=int,
-        default=50,
-        help='Training epochs per acquisition step (default: 50)'
+        default=200,
+        help='Max training epochs per acquisition step (default: 200, with early stopping)'
     )
     parser.add_argument(
         '--batch_size',
@@ -179,6 +179,24 @@ def parse_args():
             'the acquisition function effect.'
         )
     )
+    parser.add_argument(
+        '--patience',
+        type=int,
+        default=10,
+        help=(
+            'Early stopping patience: stop training if loss does not improve '
+            'for this many consecutive epochs (default: 10)'
+        )
+    )
+    parser.add_argument(
+        '--min_delta',
+        type=float,
+        default=1e-4,
+        help=(
+            'Minimum loss improvement to count as progress for early stopping '
+            '(default: 1e-4)'
+        )
+    )
 
     # --- Model ---
     parser.add_argument(
@@ -186,6 +204,15 @@ def parse_args():
         type=float,
         default=0.5,
         help='Dropout probability for the Bayesian CNN (default: 0.5)'
+    )
+
+    # --- Model Type ---
+    parser.add_argument(
+        '--model_type',
+        type=str,
+        default='bayesian',
+        choices=['bayesian', 'deterministic'],
+        help='Whether to run a Bayesian CNN (dropout enabled) or Deterministic CNN (dropout disabled everywhere).'
     )
 
     # --- Reproducibility ---
@@ -248,6 +275,8 @@ def main():
         batch_size      = args.batch_size,
         reset_model     = not args.no_reset,
         input_shape     = (1, 28, 28, 1),
+        patience        = args.patience,
+        min_delta       = args.min_delta,
     )
 
     # --- Run ---
@@ -270,19 +299,20 @@ def main():
         rng          = rng,
         n_per_class  = args.n_per_class,
         acquisitions = args.acquisition,
+        is_deterministic = (args.model_type == 'deterministic'),
         **loop_kwargs,
     )
 
     file_name = "_".join(map(str, args.acquisition))
     # --- Save history as JSON ---
-    json_path = os.path.join(args.output_dir, f"{file_name}_history.json")
+    json_path = os.path.join(args.output_dir, f"{file_name}_{args.model_type}_history.json")
     with open(json_path, 'w') as f:
         json.dump(results, f, indent=2)
     print(f"\nHistory saved to {json_path}")
 
     # --- Plot ---
     if not args.no_plot:
-        plot_path = os.path.join(args.output_dir, f"{file_name}_accuracy.png")
+        plot_path = os.path.join(args.output_dir, f"{file_name}_{args.model_type}_accuracy.png")
         plot_history(results, save_path=plot_path)
 
 

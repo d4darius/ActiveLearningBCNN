@@ -127,7 +127,7 @@ def get_balanced_initial_set(dataset, n_per_class=2, num_classes=10, rng=None):
 # ---------------------------------------------------------------------------
 
 def score_pool(apply_fn, params, rng, pool_images,
-               acquisition_name, num_mc_samples=10, batch_size=512):
+               acquisition_name, num_mc_samples=10, batch_size=512, is_deterministic=False):
     """
     Runs MC dropout over the pool in batches and returns acquisition scores.
 
@@ -156,7 +156,8 @@ def score_pool(apply_fn, params, rng, pool_images,
         # mc_probs shape: (num_mc_samples, batch, num_classes)
         mc_probs = mc_dropout_forward(
             apply_fn, params, subkey, batch,
-            num_samples=num_mc_samples, return_logits=False
+            num_samples=num_mc_samples, return_logits=False,
+            is_deterministic=is_deterministic
         )
 
         mean_probs, entropy, mutual_info = compute_uncertainty(mc_probs)
@@ -202,6 +203,9 @@ def active_learning_loop(
     input_shape        = (1, 28, 28, 1),
     reset_model        = True,
     verbose            = True,
+    is_deterministic   = False,
+    patience           = 10,
+    min_delta          = 1e-4,
 ):
     """
     Full active learning loop as described in Gal et al. 2017.
@@ -233,6 +237,10 @@ def active_learning_loop(
         input_shape      : shape for parameter initialisation
         reset_model      : if True, reinitialise weights at every step
         verbose          : print progress
+        is_deterministic : if True, disables dropout
+        patience         : early stopping patience — stop training if loss
+                           does not improve for this many consecutive epochs
+        min_delta        : minimum loss improvement to count as progress
 
     Returns:
         history : list of dicts with keys:
@@ -267,13 +275,26 @@ def active_learning_loop(
             )
 
         # ------------------------------------------------------------------
-        # 2. Train on current labelled set
+        # 2. Train on current labelled set (with early stopping)
         # ------------------------------------------------------------------
+        best_loss = float('inf')
+        patience_counter = 0
         for epoch in range(n_epochs):
             rng, epoch_rng = jax.random.split(rng)
             state, train_metrics, rng = train_epoch(
-                state, train_set, batch_size, epoch_rng
+                state, train_set, batch_size, epoch_rng, is_deterministic=is_deterministic
             )
+
+            # Early stopping: stop if training loss plateaus
+            current_loss = float(train_metrics['loss'])
+            if current_loss < best_loss - min_delta:
+                best_loss = current_loss
+                patience_counter = 0
+            else:
+                patience_counter += 1
+
+            if patience_counter >= patience:
+                break
 
         # ------------------------------------------------------------------
         # 3. Evaluate on test set
@@ -303,7 +324,8 @@ def active_learning_loop(
         rng, score_rng = jax.random.split(rng)
         scores = score_pool(
             state.apply_fn, state.params, score_rng,
-            pool['image'], acquisition_name, num_mc_samples
+            pool['image'], acquisition_name, num_mc_samples,
+            is_deterministic=is_deterministic
         )
 
         # ------------------------------------------------------------------
@@ -362,6 +384,7 @@ def run_acquisitions(
     rng,
     acquisitions,
     n_per_class    = 2,
+    is_deterministic = False,
     **loop_kwargs
 ):
     """
@@ -402,11 +425,12 @@ def run_acquisitions(
             history = active_learning_loop(
                 pool, train_set, test_set, model,
                 loop_rng, acquisition_name=acq,
+                is_deterministic=is_deterministic,
                 **loop_kwargs
             )
             all_histories[acq].append(history)
 
-    results = {acq: average_histories(all_histories[acq] for acq in acquisitions)}
+    results = {acq: average_histories(all_histories[acq]) for acq in acquisitions}
 
     
 
