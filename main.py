@@ -227,7 +227,7 @@ def parse_args():
     parser.add_argument(
         '--output_dir',
         type=str,
-        default='results',
+        default='results/MNIST',
         help='Directory to save plots and history JSON (default: results/)'
     )
     parser.add_argument(

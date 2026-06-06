@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 
-def mc_dropout_forward(apply_fn, params, rngs, x, num_samples=100, return_logits=False):
+def mc_dropout_forward(apply_fn, params, rngs, x, num_samples=100, return_logits=False, is_deterministic=False):
     """
     Performs stochastic forward passes using MC Dropout in JAX.
     
@@ -12,13 +12,14 @@ def mc_dropout_forward(apply_fn, params, rngs, x, num_samples=100, return_logits
         x: Input data.
         num_samples: Number of forward passes.
         return_logits: If True, returns logits instead of probabilities.
+        is_deterministic: If True, disables dropout (makes forward passes deterministic).
     """
     # Split the rng key to get independent dropout masks for each sample
     keys = jax.random.split(rngs, num_samples)
     
     def single_forward(key):
-        # We pass deterministic=False to ensure dropout is applied
-        logits = apply_fn({'params': params}, x, deterministic=False, rngs={'dropout': key})
+        # Pass deterministic=is_deterministic to dynamically enable/disable dropout
+        logits = apply_fn({'params': params}, x, deterministic=is_deterministic, rngs={'dropout': key})
         if return_logits:
             return logits
         return jax.nn.softmax(logits, axis=-1)

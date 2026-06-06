@@ -21,8 +21,12 @@ numpyro
 torch
 torchvision
  
-# --- Numerics ---
+# --- Numerics & Data processing ---
 numpy
+pandas
+scikit-learn
+requests
+opencv-python
  
 # --- Plotting ---
 matplotlib

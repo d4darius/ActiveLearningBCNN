@@ -254,7 +254,13 @@ def active_learning_loop(
 
     # Keep a reference init rng for resetting the model
     rng, init_rng = jax.random.split(rng)
-    state = create_train_state(init_rng, model, learning_rate, weight_decay, input_shape)
+    
+    # Weight decay formula: (1 - p) * l^2 / N
+    # p = 0.5, l^2 = 0.5 -> weight_decay = 0.25 / N
+    n_labelled = len(train_set['label'])
+    dynamic_weight_decay = 0.25 / n_labelled if n_labelled > 0 else weight_decay
+    
+    state = create_train_state(init_rng, model, learning_rate, dynamic_weight_decay, input_shape)
 
     if verbose:
         print(f"Active learning | acquisition: {acquisition_name}")
@@ -270,8 +276,10 @@ def active_learning_loop(
         # ------------------------------------------------------------------
         if reset_model:
             rng, init_rng = jax.random.split(rng)
+            n_labelled = len(train_set['label'])
+            dynamic_weight_decay = 0.25 / n_labelled if n_labelled > 0 else weight_decay
             state = create_train_state(
-                init_rng, model, learning_rate, weight_decay, input_shape
+                init_rng, model, learning_rate, dynamic_weight_decay, input_shape
             )
 
         # ------------------------------------------------------------------
@@ -301,18 +309,23 @@ def active_learning_loop(
         # ------------------------------------------------------------------
         test_metrics = evaluate(state, test_set, batch_size)
         n_labelled   = len(train_set['label'])
+        # Count positive samples in train set
+        n_pos_labelled = int(jnp.sum(train_set['label'] == 1))
 
         history.append({
             'step'         : step,
             'n_labelled'   : n_labelled,
+            'n_pos_labelled': n_pos_labelled,
             'test_accuracy': float(test_metrics['accuracy']),
             'test_loss'    : float(test_metrics['loss']),
+            'test_auc'     : float(test_metrics.get('auc', 0.0)),
         })
 
         if verbose:
             print(f"Step {step+1:>3}/{n_steps} | "
-                  f"labelled: {n_labelled:>5} | "
-                  f"test acc: {test_metrics['accuracy']*100:.2f}%")
+                  f"labelled: {n_labelled:>5} (Pos: {n_pos_labelled}) | "
+                  f"test acc: {test_metrics['accuracy']*100:.2f}% | "
+                  f"test auc: {test_metrics.get('auc', 0.0):.4f}")
 
         # ------------------------------------------------------------------
         # 4. Score pool points with acquisition function
@@ -364,10 +377,13 @@ def average_histories(histories):
         averaged.append({
             'step'             : step_dicts[0]['step'],
             'n_labelled'       : step_dicts[0]['n_labelled'],
+            'n_pos_labelled'   : np.mean([d.get('n_pos_labelled', 0) for d in step_dicts]),
             'test_accuracy'    : np.mean([d['test_accuracy'] for d in step_dicts]),
             'test_accuracy_std': np.std( [d['test_accuracy'] for d in step_dicts]),
             'test_loss'        : np.mean([d['test_loss']     for d in step_dicts]),
             'test_loss_std'    : np.std( [d['test_loss']     for d in step_dicts]),
+            'test_auc'         : np.mean([d.get('test_auc', 0.0) for d in step_dicts]),
+            'test_auc_std'     : np.std( [d.get('test_auc', 0.0) for d in step_dicts]),
         })
 
     return averaged
