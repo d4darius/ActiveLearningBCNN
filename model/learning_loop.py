@@ -426,18 +426,20 @@ def run_acquisitions(
     N_ITERATIONS = 3
 
     for rep in range(N_ITERATIONS):
+        np_rng = np.random.default_rng(rep)
+        train_set, pool = get_balanced_initial_set(dataset, n_per_class=n_per_class, rng=np_rng)
         for acq in acquisitions:
             print(f"\n{'='*50}")
             print(f"Running acquisition: {acq} at repetition {rep}")
             print(f"{'='*50}")
 
             # Fresh pool and train set for every acquisition function
-            np_rng = np.random.default_rng(42)
-            train_set, pool = get_balanced_initial_set(
-                dataset, n_per_class=n_per_class, rng=np_rng
-            )
+            # np_rng = np.random.default_rng(42)
+            # train_set, pool = get_balanced_initial_set(
+            #     dataset, n_per_class=n_per_class, rng=np_rng
+            # )
 
-            rng, loop_rng = jax.random.split(rng)
+            loop_rng = jax.random.PRNGKey(rep * len(acquisitions) + acquisitions.index(acq))
             history = active_learning_loop(
                 pool, train_set, test_set, model,
                 loop_rng, acquisition_name=acq,
