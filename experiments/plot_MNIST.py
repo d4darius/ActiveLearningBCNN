@@ -46,8 +46,35 @@ def plot_history(results, save_path=None):
     else:
         plt.show()
 
+def compute_acquisition_table(results, error_thresholds=[10.0, 5.0]):
+    rows = []
+    for threshold in error_thresholds:
+        accuracy_target = 1.0 - (threshold / 100.0)  # 10% error → 0.90 accuracy
+        row = {'% error': f"{threshold}%"}
+        for acq, history in results.items():
+            n_labelled = next(
+                (entry['n_labelled'] for entry in history 
+                 if entry['test_accuracy'] >= accuracy_target),
+                'never'
+            )
+            row[acq] = n_labelled
+        rows.append(row)
+    return rows
+
 
 with open('../results/MNIST/all_bayesian_history.json', 'r') as f:
     results_data = json.load(f)
 
 plot_history(results_data, '../results/MNIST/MNIST_plot.png')
+# Compute and print
+rows = compute_acquisition_table(results_data)
+
+# Print as a formatted table
+acq_names = list(results_data.keys())
+
+header = f"{'% error':<10}" + "".join(f"{a:<20}" for a in acq_names)
+print(header)
+print("-" * len(header))
+for row in rows:
+    line = f"{row['% error']:<10}" + "".join(f"{str(row[a]):<20}" for a in acq_names)
+    print(line)
