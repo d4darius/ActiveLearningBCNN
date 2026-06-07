@@ -86,6 +86,24 @@ def plot_history(results, save_path=None):
     else:
         plt.show()
 
+# ---------------------------------------------------------------------------
+# Table to show how many steps it requires to reach 10-5% of test error
+# ---------------------------------------------------------------------------
+def compute_acquisition_table(results, error_thresholds=[10.0, 5.0]):
+    rows = []
+    for threshold in error_thresholds:
+        accuracy_target = 1.0 - (threshold / 100.0)  # 10% error → 0.90 accuracy
+        row = {'% error': f"{threshold}%"}
+        for acq, history in results.items():
+            n_labelled = next(
+                (entry['n_labelled'] for entry in history 
+                 if entry['test_accuracy'] >= accuracy_target),
+                'never'
+            )
+            row[acq] = n_labelled
+        rows.append(row)
+    return rows
+
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -280,18 +298,6 @@ def main():
     )
 
     # --- Run ---
-    # if args.acquisition == ['all']:
-    #     # Reproduces Figure 1 of the paper
-    #     results = run_acquisitions(
-    #         dataset     = mnist_train,
-    #         test_set    = mnist_test,
-    #         model       = model,
-    #         rng         = rng,
-    #         n_per_class = args.n_per_class,
-    #         **loop_kwargs,
-    #     )
-    # else:
-    # Single acquisition function
     results = run_acquisitions(
         dataset      = mnist_train,
         test_set     = mnist_test,
@@ -314,6 +320,9 @@ def main():
     if not args.no_plot:
         plot_path = os.path.join(args.output_dir, f"{file_name}_{args.model_type}_accuracy.png")
         plot_history(results, save_path=plot_path)
+    
+    # --- Show error table ---
+    compute_acquisition_table(results)
 
 
 if __name__ == '__main__':
