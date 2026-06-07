@@ -12,8 +12,6 @@ import torchvision
 from libs.network import BayesianCNN
 from model.learning_loop import (
     ACQUISITION_FUNCTIONS,
-    active_learning_loop,
-    get_balanced_initial_set,
     run_acquisitions,
 )
 
@@ -322,7 +320,16 @@ def main():
         plot_history(results, save_path=plot_path)
     
     # --- Show error table ---
-    compute_acquisition_table(results)
+    rows = compute_acquisition_table(results)
+    # Print as a formatted table
+    acq_names = list(results.keys())
+
+    header = f"{'% error':<10}" + "".join(f"{a:<20}" for a in acq_names)
+    print(header)
+    print("-" * len(header))
+    for row in rows:
+        line = f"{row['% error']:<10}" + "".join(f"{str(row[a]):<20}" for a in acq_names)
+        print(line)
 
 
 if __name__ == '__main__':
